@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crop Recommendation</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🌾 Crop Recommendation</h1>
+
+    <!-- Form -->
+    <form id="cropForm">
+      <input type="number" name="N" placeholder="Nitrogen (N)" required>
+      <input type="number" name="P" placeholder="Phosphorus (P)" required>
+      <input type="number" name="K" placeholder="Potassium (K)" required>
+      <input type="number" name="temperature" placeholder="Temperature (°C)" required>
+      <input type="number" name="humidity" placeholder="Humidity (%)" required>
+      <input type="number" name="ph" placeholder="Soil pH" required>
+      <input type="number" name="rainfall" placeholder="Rainfall (mm)" required>
+      <button type="submit">Get Recommendation</button>
+    </form>
+
+    <!-- Results -->
+    <div id="results"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById("cropForm");
+    const resultsDiv = document.getElementById("results");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      resultsDiv.innerHTML = "<p>Loading...</p>";
+
+      const formData = new FormData(form);
+      const data = {};
+      formData.forEach((value, key) => data[key] = Number(value));
+
+      try {
+        const response = await fetch("http://localhost:8000/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+
+        if (result.recommendations) {
+          resultsDiv.innerHTML = result.recommendations.map(
+            (r,i) => `
+              <div class="crop-card">
+                <h3>${i+1}. ${r.crop} – ${r.confidence}%</h3>
+                ${r.image ? `<img src="${r.image}" alt="${r.crop}">` : ""}
+                <p>💡 ${r.tips}</p>
+              </div>
+            `
+          ).join("");
+        } else {
+          resultsDiv.innerHTML = "<p>No recommendations found.</p>";
+        }
+      } catch (err) {
+        resultsDiv.innerHTML = "<p>Error connecting to backend.</p>";
+        console.error(err);
+      }
+    });
+  </script>
+</body>
+</html>
