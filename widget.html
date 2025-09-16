@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Farmer Chatbot Widget</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    #chat-widget {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 320px;
+      background: #f9f9f9;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      box-shadow: 0px 4px 12px rgba(0,0,0,0.1);
+    }
+    #chat-header {
+      background: #2e7d32;
+      color: white;
+      padding: 10px;
+      border-radius: 12px 12px 0 0;
+      font-weight: bold;
+    }
+    #chat-box {
+      height: 280px;
+      overflow-y: auto;
+      padding: 10px;
+    }
+    .msg { margin: 5px 0; padding: 6px 10px; border-radius: 8px; }
+    .user { background: #d1e7dd; text-align: right; }
+    .bot { background: #e3f2fd; text-align: left; }
+    #input-area {
+      display: flex;
+      border-top: 1px solid #ccc;
+    }
+    #input-area input {
+      flex: 1;
+      border: none;
+      padding: 8px;
+      border-radius: 0 0 0 12px;
+    }
+    #input-area button {
+      background: #2e7d32;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    #mic-btn {
+      background: #f57c00;
+      border-radius: 0 0 12px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="chat-widget">
+  <div id="chat-header">👨‍🌾 Farmer Assistant</div>
+  <div id="chat-box"></div>
+  <div id="input-area">
+    <input type="text" id="user-input" placeholder="Type or speak...">
+    <button onclick="sendMessage()">Send</button>
+    <button id="mic-btn" onclick="startListening()">🎤</button>
+  </div>
+</div>
+
+<script>
+  async function sendMessage() {
+    const input = document.getElementById("user-input");
+    const message = input.value.trim();
+    if (!message) return;
+
+    const chatBox = document.getElementById("chat-box");
+    chatBox.innerHTML += `<div class="msg user">${message}</div>`;
+    input.value = "";
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    let reply = "";
+
+    // Detect intent
+
+    if (message.includes("फसल") || message.toLowerCase().includes("crop")) {
+      // Simple demo inputs for crop recommendation
+      const req = {
+        N: 90, P: 42, K: 43, ph: 6.5, rainfall: 200, temp: 25
+      };
+      const res = await fetch("http://127.0.0.1:8000/predict_crop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req)
+      });
+      const data = await res.json();
+      reply = `आपके खेत के लिए सुझाई गई फसल है: 🌾 ${data.recommended_crop}`;
+    }
+    else if (message.includes("मौसम") || message.toLowerCase().includes("weather")) {
+      // Example location: Delhi (lat:28.6, lon:77.2)
+      const res = await fetch("http://127.0.0.1:8000/weather/28.6/77.2");
+      const data = await res.json();
+      if (data.main) {
+        reply = `आज का मौसम: 🌡️ ${data.main.temp}°C, ${data.weather[0].description}`;
+      } else {
+        reply = "मौसम जानकारी उपलब्ध नहीं है।";
+      }
+    }
+    else if (message.includes("योजना") || message.toLowerCase().includes("scheme")) {
+      const res = await fetch("http://127.0.0.1:8000/schemes");
+      const data = await res.json();
+      reply = "कृषि योजनाएँ:\n";
+      data.schemes.forEach(s => {
+        reply += `👉 ${s.title}: ${s.desc}\n`;
+      });
+    }
+    else {
+      // Fallback chatbot
+      const res = await fetch("http://127.0.0.1:8000/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: message, lang: "hi" })
+      });
+      const data = await res.json();
+      reply = data.reply;
+    }
+
+    chatBox.innerHTML += `<div class="msg bot">${reply}</div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Speak reply aloud
+    speak(reply);
+  }
+
+  // Speech-to-text (Hindi or other)
+  function startListening() {
+    if (!('webkitSpeechRecognition' in window)) {
+      alert("Speech recognition not supported in this browser");
+      return;
+    }
+    const recognition = new webkitSpeechRecognition();
+    recognition.lang = "hi-IN"; // 👈 Hindi
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      document.getElementById("user-input").value = transcript;
+      sendMessage();
+    };
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+    };
+  }
+
+  // Text-to-speech (bot replies)
+  function speak(text) {
+    if (!("speechSynthesis" in window)) return;
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.lang = "hi-IN";
+    window.speechSynthesis.speak(msg);
+  }
+</script>
+
+</body>
+</html>
