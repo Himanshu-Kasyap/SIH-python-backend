@@ -1,7 +1,5 @@
 fastapi
-uvicorn
-scikit-learn
+uvicorn[standard]
 pandas
-joblib
-requests
-python-dotenv
+scikit-learn
+numpy
